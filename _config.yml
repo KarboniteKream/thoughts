@@ -3,8 +3,10 @@ email: klemen.kosir@kream.io
 description: I have thoughts, sometimes.
 url: "https://thoughts.kream.io"
 github_username: KarboniteKream
+google_analytics: UA-85731271-2
 
 theme: minima
+
 plugins:
   - jekyll-feed
 
