@@ -1,0 +1,18 @@
+title: thoughts out loud
+email: klemen.kosir@kream.io
+description: I have thoughts, sometimes.
+url: "https://thoughts.kream.io"
+github_username: KarboniteKream
+
+theme: minima
+plugins:
+  - jekyll-feed
+
+include:
+  - _pages
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - LICENSE
+  - README.md
