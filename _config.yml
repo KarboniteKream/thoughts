@@ -1,7 +1,7 @@
 title: thoughts out loud
-email: klemen.kosir@kream.io
 description: I have thoughts, sometimes.
 url: "https://thoughts.kream.io"
+email: klemen.kosir@kream.io
 github_username: KarboniteKream
 google_analytics: UA-85731271-2
 
@@ -14,7 +14,11 @@ include:
   - _pages
 
 exclude:
+  - CNAME
   - Gemfile
   - Gemfile.lock
   - LICENSE
   - README.md
+
+sass:
+  style: compressed
