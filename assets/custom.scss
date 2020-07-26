@@ -5,6 +5,12 @@
   text-align: right;
 }
 
+@media screen and (max-width: 800px) {
+  .footer-col-3 {
+    text-align: left;
+  }
+}
+
 @media screen {
   .container {
     margin: 10px auto;
