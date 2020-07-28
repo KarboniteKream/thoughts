@@ -41,6 +41,8 @@ you can refer to [GitHub documentation][gpg], but the process is as follows:
 gpg --full-generate-key
 # The first line contains your key ID, right after "sec rsa4096/".
 gpg --list-secret-keys --keyid-format LONG
+# Publish the key so other developers can verify your signature.
+gpg --keyserver hkp://pgp.mit.edu --send-keys <KEY_ID>
 # Export your secret key to a file.
 gpg --export-secret-key <KEY_ID> > secret.gpg
 {% endhighlight %}
