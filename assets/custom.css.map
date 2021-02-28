@@ -1,0 +1,12 @@
+{
+	"version": 3,
+	"file": "custom.css",
+	"sources": [
+		"custom.scss"
+	],
+	"sourcesContent": [
+		".footer-col-3 {\n  text-align: right;\n}\n\n@media screen and (max-width: 800px) {\n  .footer-col-3 {\n    text-align: left;\n  }\n}\n\n@media screen {\n  .container {\n    margin: 10px auto;\n    max-width: 600px;\n    text-align: center;\n\n    h1 {\n      margin: 30px 0;\n      font-size: 4em;\n      line-height: 1;\n      letter-spacing: -1px;\n    }\n  }\n}\n"
+	],
+	"names": [],
+	"mappings": "AAAA,AAAA,aAAa,AAAC,CACZ,UAAU,CAAE,KAAK,CAClB,AAED,MAAM,8BACJ,CAAA,AAAA,aAAa,AAAC,CACZ,UAAU,CAAE,IAAI,CACjB,CAAA,AAGH,MAAM,OACJ,CAAA,AAAA,UAAU,AAAC,CACT,MAAM,CAAE,SAAS,CACjB,SAAS,CAAE,KAAK,CAChB,UAAU,CAAE,MAAM,CAQnB,AAXD,AAKE,UALQ,CAKR,EAAE,AAAC,CACD,MAAM,CAAE,MAAM,CACd,SAAS,CAAE,GAAG,CACd,WAAW,CAAE,CAAC,CACd,cAAc,CAAE,IAAI,CACrB,CACF"
+}

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.7.1 -->
+<title>Publishing a Gradle project to Maven Central | thoughts out loud</title>
+<meta name="generator" content="Jekyll v4.2.0" />
+<meta property="og:title" content="Publishing a Gradle project to Maven Central" />
+<meta name="author" content="Klemen Košir" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="I had some free time over the last few days to work on a small Java project, which I ultimately decided to publish on Maven Central. Due to being unable to find up-to-date samples for Gradle projects, I decided to collect my findings as a blog post." />
+<meta property="og:description" content="I had some free time over the last few days to work on a small Java project, which I ultimately decided to publish on Maven Central. Due to being unable to find up-to-date samples for Gradle projects, I decided to collect my findings as a blog post." />
+<link rel="canonical" href="https://thoughts.kream.io/2020/07/26/maven-central.html" />
+<meta property="og:url" content="https://thoughts.kream.io/2020/07/26/maven-central.html" />
+<meta property="og:site_name" content="thoughts out loud" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2020-07-26T10:00:00+00:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Publishing a Gradle project to Maven Central" />
+<script type="application/ld+json">
+{"description":"I had some free time over the last few days to work on a small Java project, which I ultimately decided to publish on Maven Central. Due to being unable to find up-to-date samples for Gradle projects, I decided to collect my findings as a blog post.","url":"https://thoughts.kream.io/2020/07/26/maven-central.html","@type":"BlogPosting","datePublished":"2020-07-26T10:00:00+00:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://thoughts.kream.io/2020/07/26/maven-central.html"},"author":{"@type":"Person","name":"Klemen Košir"},"headline":"Publishing a Gradle project to Maven Central","dateModified":"2020-07-26T10:00:00+00:00","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="icon" href="/assets/favicon.ico">
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="stylesheet" href="/assets/custom.css"><link type="application/atom+xml" rel="alternate" href="https://thoughts.kream.io/feed.xml" title="thoughts out loud" /><script>
+if(!(window.doNotTrack === "1" || navigator.doNotTrack === "1" || navigator.doNotTrack === "yes" || navigator.msDoNotTrack === "1")) {
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-85731271-2', 'auto');
+  ga('send', 'pageview');
+}
+</script>
+  
+</head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">thoughts out loud</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Publishing a Gradle project to Maven Central</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2020-07-26T10:00:00+00:00" itemprop="datePublished">Jul 26, 2020
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>I had some free time over the last few days to work on a small Java project, which I ultimately
+decided to publish on Maven Central. Due to being unable to find up-to-date samples for Gradle
+projects, I decided to collect my findings as a blog post.</p>
+
+<p>While publishing projects to something like <em>npm</em> is fairly simple, uploading to Maven Central is a
+bit more involved, as they have much stricter requirements and validation.</p>
+
+<p>This blog post will guide you step by step from a plain Gradle configuration to being able to
+publish JARs to Maven Central in no time.</p>
+
+<h3 id="-baby-steps">👶 Baby steps</h3>
+
+<h4 id="create-a-sonatype-account">Create a Sonatype account</h4>
+<p>Before we start, you need to gain write access to the repositories. Visit <a href="https://issues.sonatype.org">Sonatype’s Jira</a>,
+create an account, and <a href="https://issues.sonatype.org/secure/CreateIssue.jspa?issuetype=21&amp;pid=10134">open a new ticket</a> to claim your desired <code class="language-plaintext highlighter-rouge">groupId</code>.</p>
+
+<p>If the group ID is an ordinary domain, you will need to prove ownership. In my case, to claim
+<code class="language-plaintext highlighter-rouge">io.kream</code>, I had to add a <code class="language-plaintext highlighter-rouge">TXT</code> record referencing the ticket to my domain’s DNS configuration.
+For reference, <a href="https://issues.sonatype.org/browse/OSSRH-59420">here’s my ticket</a>.</p>
+
+<p><img src="/assets/images/new-ticket.png" alt="Open a new ticket" /></p>
+
+<p>As this is a manual process done by a Sonatype employee, the approval can take up to a few hours.
+Once the account is approved, you’ll be able to log in to the <a href="https://oss.sonatype.org">Nexus Repository Manager</a>,
+along with the repository URLs you should use.</p>
+
+<p>While we’re waiting, let’s configure the rest!</p>
+
+<h4 id="generate-a-gpg-key">Generate a GPG key</h4>
+<p>To be able to sign the published artifacts, you’ll need a GPG key. For step-by-step instructions,
+you can refer to <a href="https://docs.github.com/en/github/authenticating-to-github/generating-a-new-gpg-key">GitHub documentation</a>, but the process is as follows:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="c"># Make sure to generate a 4096-bit RSA key.</span>
+gpg <span class="nt">--full-generate-key</span>
+<span class="c"># The first line contains your key ID, right after "sec rsa4096/".</span>
+gpg <span class="nt">--list-secret-keys</span> <span class="nt">--keyid-format</span> LONG
+<span class="c"># Publish the key so other developers can verify your signature.</span>
+gpg <span class="nt">--keyserver</span> hkp://pgp.mit.edu <span class="nt">--send-keys</span> &lt;KEY_ID&gt;
+<span class="c"># Export your secret key to a file.</span>
+gpg <span class="nt">--export-secret-key</span> &lt;KEY_ID&gt; <span class="o">&gt;</span> secret.gpg</code></pre></figure>
+
+<p>Make sure to store the <code class="language-plaintext highlighter-rouge">secret.gpg</code> file in a secure place and save the key ID for later.</p>
+
+<h3 id="️-configuring-gradle">⚙️ Configuring Gradle</h3>
+<p>First things first, let’s add the <a href="https://docs.gradle.org/current/userguide/publishing_maven.html"><code class="language-plaintext highlighter-rouge">maven-publish</code></a> and <a href="https://docs.gradle.org/current/userguide/signing_plugin.html"><code class="language-plaintext highlighter-rouge">signing</code></a>
+plugins to <code class="language-plaintext highlighter-rouge">build.gradle</code>.</p>
+
+<figure class="highlight"><pre><code class="language-gradle" data-lang="gradle"><span class="n">plugins</span> <span class="o">{</span>
+  <span class="n">id</span> <span class="s1">'maven-publish'</span>
+  <span class="n">id</span> <span class="s1">'signing'</span>
+<span class="o">}</span></code></pre></figure>
+
+<p>As stated in the <a href="https://central.sonatype.org/pages/requirements.html">requirements</a>, we need to include source and Javadoc JARs in the
+published package.</p>
+
+<figure class="highlight"><pre><code class="language-gradle" data-lang="gradle"><span class="n">java</span> <span class="o">{</span>
+  <span class="n">withJavadocJar</span><span class="o">()</span>
+  <span class="n">withSourcesJar</span><span class="o">()</span>
+<span class="o">}</span></code></pre></figure>
+
+<p>Upon running <code class="language-plaintext highlighter-rouge">gradle build</code>, the <code class="language-plaintext highlighter-rouge">build/libs</code> directory should contain two additional JAR files,
+ending with <code class="language-plaintext highlighter-rouge">-javadoc</code> and <code class="language-plaintext highlighter-rouge">-sources</code>.</p>
+
+<h4 id="metadata">Metadata</h4>
+<p>Since projects published to Maven Central require a <code class="language-plaintext highlighter-rouge">pom.xml</code> file, we’ll have to generate one.
+For the <code class="language-plaintext highlighter-rouge">maven-publish</code> plugin to do its magic, we need to define a publication and the target
+repository:</p>
+
+<figure class="highlight"><pre><code class="language-gradle" data-lang="gradle"><span class="k">publishing</span> <span class="o">{</span>
+  <span class="n">publications</span> <span class="o">{</span>
+    <span class="n">jar</span><span class="o">(</span><span class="kt">MavenPublication</span><span class="o">)</span> <span class="o">{</span>
+      <span class="c1">// Include JAR files.</span>
+      <span class="n">from</span> <span class="n">components</span><span class="o">.</span><span class="na">java</span>
+
+      <span class="n">pom</span> <span class="o">{</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="s1">'project'</span>
+        <span class="n">description</span> <span class="o">=</span> <span class="s1">'The best project ever'</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="s1">'https://example.com/project'</span>
+        <span class="n">licenses</span> <span class="o">{</span>
+          <span class="n">license</span> <span class="o">{</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="s1">'MIT License'</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="s1">'https://opensource.org/licenses/MIT'</span>
+          <span class="o">}</span>
+        <span class="o">}</span>
+        <span class="n">developers</span> <span class="o">{</span>
+          <span class="n">developer</span> <span class="o">{</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="s1">'Me'</span>
+            <span class="n">email</span> <span class="o">=</span> <span class="s1">'me@example.com'</span>
+          <span class="o">}</span>
+        <span class="o">}</span>
+        <span class="n">scm</span> <span class="o">{</span>
+          <span class="n">connection</span> <span class="o">=</span> <span class="s1">'scm:git:git://github.com/me/project.git'</span>
+          <span class="n">developerConnection</span> <span class="o">=</span> <span class="s1">'scm:git:ssh://github.com:me/project.git'</span>
+          <span class="n">url</span> <span class="o">=</span> <span class="s1">'https://github.com/me/project'</span>
+        <span class="o">}</span>
+      <span class="o">}</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+
+  <span class="k">repositories</span> <span class="o">{</span>
+    <span class="n">maven</span> <span class="o">{</span>
+      <span class="n">url</span> <span class="o">=</span> <span class="n">version</span><span class="o">.</span><span class="na">endsWith</span><span class="o">(</span><span class="s1">'-SNAPSHOT'</span><span class="o">)</span>
+            <span class="o">?</span> <span class="s1">'https://oss.sonatype.org/content/repositories/snapshots'</span>
+            <span class="o">:</span> <span class="s1">'https://oss.sonatype.org/service/local/staging/deploy/maven2'</span>
+
+      <span class="n">credentials</span> <span class="o">{</span>
+        <span class="n">username</span> <span class="n">project</span><span class="o">.</span><span class="na">findProperty</span><span class="o">(</span><span class="s1">'ossrh.username'</span><span class="o">)</span>
+        <span class="n">password</span> <span class="n">project</span><span class="o">.</span><span class="na">findProperty</span><span class="o">(</span><span class="s1">'ossrh.password'</span><span class="o">)</span>
+      <span class="o">}</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}</span></code></pre></figure>
+
+<p>The entry names can be anything, but we’ve chosen <code class="language-plaintext highlighter-rouge">jar</code> as the publication and <code class="language-plaintext highlighter-rouge">maven</code> as the
+repository. All available properties for the <code class="language-plaintext highlighter-rouge">pom</code> section can be found <a href="https://docs.gradle.org/current/dsl/org.gradle.api.publish.maven.MavenPom.html">here</a>.</p>
+
+<p>You can inspect the generated <code class="language-plaintext highlighter-rouge">pom.xml</code> file by running <code class="language-plaintext highlighter-rouge">gradle generatePomFileForJarPublication</code>
+and opening <code class="language-plaintext highlighter-rouge">build/publications/jar/pom-default.xml</code>. It will include the project information, all
+the specified properties, and the dependencies.</p>
+
+<p>As for the <code class="language-plaintext highlighter-rouge">repositories</code> section, we’ve specified the snapshot and release URLs, as instructed in
+the Jira ticket. This way we can publish any number of <code class="language-plaintext highlighter-rouge">SNAPSHOT</code> versions before making the final
+release.</p>
+
+<p>You can specify your credentials in <code class="language-plaintext highlighter-rouge">$HOME/.gradle/gradle.properties</code>:</p>
+
+<figure class="highlight"><pre><code class="language-properties" data-lang="properties"><span class="py">ossrh.username</span><span class="p">=</span><span class="s">&lt;USERNAME&gt;</span>
+<span class="py">ossrh.password</span><span class="p">=</span><span class="s">&lt;PASSWORD&gt;</span></code></pre></figure>
+
+<p>To avoid storing your password as plaintext, you can generate a user token from your profile page
+on <a href="https://oss.sonatype.org">Nexus Repository Manager</a>.</p>
+
+<h4 id="signing">Signing</h4>
+
+<p>Unlike <em>npm</em>, all files published to Maven Central need to be signed with GPG. With the <code class="language-plaintext highlighter-rouge">signing</code>
+plugin, this is as simple as adding the following section to <code class="language-plaintext highlighter-rouge">build.gradle</code>:</p>
+
+<figure class="highlight"><pre><code class="language-gradle" data-lang="gradle"><span class="n">signing</span> <span class="o">{</span>
+  <span class="n">sign</span> <span class="k">publishing</span><span class="o">.</span><span class="na">publications</span><span class="o">.</span><span class="na">jar</span>
+<span class="o">}</span></code></pre></figure>
+
+<p>Again, let’s store the credentials in <code class="language-plaintext highlighter-rouge">gradle.properties</code>:</p>
+
+<figure class="highlight"><pre><code class="language-properties" data-lang="properties"><span class="c"># Last 8 symbols of the key.
+</span><span class="py">signing.keyId</span><span class="p">=</span><span class="s">&lt;KEY_ID&gt;</span>
+<span class="py">signing.password</span><span class="p">=</span><span class="s">&lt;PASSWORD&gt;</span>
+<span class="py">signing.secretKeyRingFile</span><span class="p">=</span><span class="s">/path/to/secret.gpg</span></code></pre></figure>
+
+<p>There are other ways to retrieve this information from environment variables or <code class="language-plaintext highlighter-rouge">gpg-agent</code>.
+For details, please refer to the <a href="https://docs.gradle.org/current/userguide/signing_plugin.html">plugin documentation</a>.</p>
+
+<p>You can verify the configuration by running <code class="language-plaintext highlighter-rouge">gradle signJarPublication</code> or just <code class="language-plaintext highlighter-rouge">gradle sign</code>.
+If everything is in order, the command will complete successfully. Additionally, the <code class="language-plaintext highlighter-rouge">build/libs</code>
+directory will now contain <code class="language-plaintext highlighter-rouge">.asc</code> files for the individual artifacts.</p>
+
+<h3 id="-release">⭐ Release!</h3>
+<p>Now that everything is set up, you can run <code class="language-plaintext highlighter-rouge">gradle publish</code>, and in about 30 seconds, your project
+should be published to the Sonatype repository!</p>
+
+<p>If you’re publishing a <code class="language-plaintext highlighter-rouge">SNAPSHOT</code> version, you’re all done, but if you’re trying to publish a
+release version, we have to do some more manual work. Log in to <a href="https://oss.sonatype.org">Nexus Repository Manager</a>
+and click on <code class="language-plaintext highlighter-rouge">Staging Repositories</code> on the left.</p>
+
+<p>This page will list your recently published staging versions. The repository should be in <em>Open</em>
+state, which means it’s waiting for your review. You can inspect the repository contents, and once
+you’re happy with it, click on the <code class="language-plaintext highlighter-rouge">Close</code> button. This will close the repository and trigger the
+validation checks.</p>
+
+<p><img src="/assets/images/close-repository.png" alt="Close the repository" /></p>
+
+<p>This process can take a few seconds, but hopefully, all checks pass. If everything is in order, you
+can click on the <code class="language-plaintext highlighter-rouge">Release</code> button and the package will be copied from staging to the release
+repository.</p>
+
+<p>Since this is your first time publishing to Maven Central, you must comment on your Jira ticket that
+you’ve promoted the release, so the Sonatype employee can enable syncing. Once enabled, your project
+should be available for download from Maven Central fairly soon, and on search engines in about two
+hours.</p>
+
+<p>Enjoy working on your project! 🎉</p>
+
+<h3 id="-references">📚 References</h3>
+<ul>
+  <li><a href="https://central.sonatype.org/pages/ossrh-guide.html">OSSRH Guide</a></li>
+  <li><a href="https://central.sonatype.org/pages/requirements.html">Sonatype requirements</a></li>
+  <li><a href="https://docs.gradle.org/current/userguide/publishing_maven.html"><code class="language-plaintext highlighter-rouge">maven-publish</code> plugin documentation</a></li>
+  <li><a href="https://docs.gradle.org/current/userguide/signing_plugin.html"><code class="language-plaintext highlighter-rouge">signing</code> plugin documentation</a></li>
+  <li><a href="https://medium.com/@nmauti/publishing-a-project-on-maven-central-8106393db2c3">Reference blog post</a></li>
+</ul>
+
+
+  </div><a class="u-url" href="/2020/07/26/maven-central.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">thoughts out loud</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Klemen Košir</li><li><a class="u-email" href="mailto:klemen.kosir@kream.io">klemen.kosir@kream.io</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/KarboniteKream"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">KarboniteKream</span></a></li><li><a href="https://www.twitter.com/KarboniteKream"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">KarboniteKream</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>I have thoughts, sometimes.</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

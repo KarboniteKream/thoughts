@@ -1,0 +1,300 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.2.0">Jekyll</generator><link href="https://thoughts.kream.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://thoughts.kream.io/" rel="alternate" type="text/html" /><updated>2021-02-28T13:14:15+00:00</updated><id>https://thoughts.kream.io/feed.xml</id><title type="html">thoughts out loud</title><subtitle>I have thoughts, sometimes.</subtitle><author><name>Klemen Košir</name></author><entry><title type="html">Notes on “The Linux Device Model”</title><link href="https://thoughts.kream.io/2021/02/23/linux-device-model.html" rel="alternate" type="text/html" title="Notes on “The Linux Device Model”" /><published>2021-02-23T10:00:00+00:00</published><updated>2021-02-23T10:00:00+00:00</updated><id>https://thoughts.kream.io/2021/02/23/linux-device-model</id><content type="html" xml:base="https://thoughts.kream.io/2021/02/23/linux-device-model.html">&lt;p&gt;As part of &lt;a href=&quot;http://eudyptula-challenge.org&quot;&gt;The Eudyptula Challenge&lt;/a&gt;, Little tasked me to read Chapter 14 of
+&lt;a href=&quot;https://lwn.net/Kernel/LDD3/&quot;&gt;Linux Device Drivers&lt;/a&gt;, titled &lt;em&gt;The Linux Device Model&lt;/em&gt;. Since the introduced topics are
+pretty advanced, I took some notes along the way. These skip many details, so if you find the topic
+interesting, please go read the whole chapter. Note that this book is a bit out of date since it
+was written for kernel version &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;2.6.10&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;The Linux device model can be roughly described as a data structure used to represent the hierarchy
+and relationships between buses, drivers, and devices in a Linux system. This model is exposed and
+can be interacted with, using the &lt;em&gt;sysfs&lt;/em&gt; pseudo filesystem, which is usually mounted at &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/sys&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;-kobjects&quot;&gt;🧱 Kobjects&lt;/h3&gt;
+&lt;p&gt;Kobjects are the basic building blocks of the Linux device model. They can be used for:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;reference counting (embedded inside other data structures)&lt;/li&gt;
+  &lt;li&gt;&lt;em&gt;sysfs&lt;/em&gt; representation&lt;/li&gt;
+  &lt;li&gt;device model representation&lt;/li&gt;
+  &lt;li&gt;hotplug event handing&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We won’t go into detail about reference counting, but kobject’s reference counter can be modified
+using the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kobject_get()&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kobject_put()&lt;/code&gt; functions. Once the counter reaches &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;0&lt;/code&gt;, the kobject
+is freed.&lt;/p&gt;
+
+&lt;p&gt;All kobjects, if exposed, show up in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/sys&lt;/code&gt; as directories. Inside these directories reside the
+kobject’s attributes as files. Each kobject is assigned a &lt;em&gt;ktype&lt;/em&gt;, which defines its default
+attributes, along with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;show()&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;store()&lt;/code&gt; functions (through &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sysfs_ops&lt;/code&gt;). These verify and
+implement the read/write operations on the attributes (files). If you wish to modify non-default
+attributes to a kobject, you can use the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sysfs_{create,remove}_file()&lt;/code&gt; functions.&lt;/p&gt;
+
+&lt;h4 id=&quot;ksets&quot;&gt;Ksets&lt;/h4&gt;
+&lt;p&gt;While relationships between kobjects can be defined using the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;parent&lt;/code&gt; field, they are usually
+grouped into &lt;em&gt;ksets&lt;/em&gt; (using a linked list). These act as a container for other kobjects and ksets,
+and always appear under &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/sys&lt;/code&gt;, through an embedded kobject. If a kobject is part of a kset, it uses
+the parent kset’s ktype. Kset membership can be modified using the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kobject_{add,del}()&lt;/code&gt; functions.&lt;/p&gt;
+
+&lt;p&gt;Kobjects without a parent will appear in the &lt;em&gt;sysfs&lt;/em&gt; root, but this is rarely desired. On the
+other hand, ksets must belong to a &lt;em&gt;subsystem&lt;/em&gt;. A subsystem is a representation of a part of the
+device model (for example the device subsystem under &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/sys/devices&lt;/code&gt; or the PCI subsystem under
+&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/sys/bus/pci&lt;/code&gt;). The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;subsystem&lt;/code&gt; data structure contains a single kset and a semaphore to control
+concurrent access during kset traversal.&lt;/p&gt;
+
+&lt;p&gt;While the &lt;em&gt;sysfs&lt;/em&gt; filesystem has a tree structure, additional relationships between kobjects are
+represented using symbolic links. For example, the device a driver is attached to is simply a
+symbolic link to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/sys/devices/&amp;lt;device&amp;gt;&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;Each time a kobject is created or removed, a hotplug event is triggered, which allows the userspace
+to react appropriately and load the necessary drivers. This used to be handled by the
+&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/sbin/hotplug&lt;/code&gt; script. The events bubble up the device model, and each layer can add the
+corresponding environment variables or suppress the event if necessary.&lt;/p&gt;
+
+&lt;p&gt;Here’s an example of a simple &lt;em&gt;sysfs&lt;/em&gt; hierarchy:&lt;/p&gt;
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;tree /sys
+/sys
+├── kobject
+├── kset
+│   ├── kobject1
+│   │   ├── attribute1
+│   │   └── attribute2
+│   ├── kobject2 -&amp;gt; ../subsystem/kobject
+│   └── kobject3
+└── subsystem
+    └── kobject
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;-devices-and-drivers&quot;&gt;🏠 Devices and drivers&lt;/h3&gt;
+&lt;p&gt;Using kobjects as a base, higher-level data structures are fairly similar. They each use an embedded
+kobject and represent a small part of the Linux device model. Whenever your functions are passed a
+lower-level object, which is embedded in a custom data structure, you can use the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;container_of()&lt;/code&gt;
+macro to get the containing data structure defined in your kernel module.&lt;/p&gt;
+
+&lt;p&gt;Similar to kobjects, these data structures all have their own functions for initialization and
+attribute handling. For ease of development, convenience macros like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;DEVICE_ATTR()&lt;/code&gt; are defined.&lt;/p&gt;
+
+&lt;h4 id=&quot;buses&quot;&gt;Buses&lt;/h4&gt;
+&lt;p&gt;Buses are used as a channel between the CPU and multiple devices. While not necessarily representing
+a physical bus, all devices must be connected via a bus. Virtual buses are called “platform” buses.
+Note that each bus is its own subsystem and is located under &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/sys/bus&lt;/code&gt;. Each bus contains a
+&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;devices&lt;/code&gt; and a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;drivers&lt;/code&gt; kset. As mentioned before, devices are symbolic links to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/sys/devices&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;Whenever a new device or a driver for a specific bus is added, the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;match()&lt;/code&gt; function is called,
+which tries to assign the device with a driver. After the function finds a driver, the kernel calls
+its &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;probe()&lt;/code&gt; method, which performs additional checks and initialized the device. If &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;probe()&lt;/code&gt;
+returns an error, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;match()&lt;/code&gt; continues with other drivers.&lt;/p&gt;
+
+&lt;h4 id=&quot;devices&quot;&gt;Devices&lt;/h4&gt;
+&lt;p&gt;Every device in a Linux system is represented by a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;device&lt;/code&gt; structure. It contains all the fields
+needed to identify a device and its location within the device tree, while most other fields are
+initialized by the specified subsystem, which assigns the bus and a driver. These subsystems
+usually wrap the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;device&lt;/code&gt; structure to track additional information. As mentioned, all devices are
+located in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/sys/devices&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;Classes are an even higher-level abstraction over devices, based on what a device does (for example
+storage or input devices). They have pretty a complex interface, so we won’t go into detail.
+Classes are usually located in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/sys/class&lt;/code&gt;, which mostly contain symbolic links to devices. Class
+membership is handled by higher-level subsystem code.&lt;/p&gt;
+
+&lt;h4 id=&quot;drivers&quot;&gt;Drivers&lt;/h4&gt;
+&lt;p&gt;Drivers, usually located under &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/sys/bus/&amp;lt;name&amp;gt;/drivers&lt;/code&gt;, implement the logic to interact with a
+device. Once it’s registered with a subsystem, it can be matched with devices connected to a system.
+The structure of a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;driver&lt;/code&gt; object is similar to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;device&lt;/code&gt;, but it also contains various methods to
+initialize and shutdown devices. One of these methods is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;probe()&lt;/code&gt;, mentioned above.&lt;/p&gt;
+
+&lt;p&gt;This concludes my notes about the various data structures in the Linux device model. For an example
+of how this all works in practice in the PCI subsystem, please check the &lt;em&gt;Putting It All Together&lt;/em&gt;
+section in the book. The &lt;a href=&quot;https://static.lwn.net/images/pdf/LDD3/ch14.pdf&quot;&gt;explanation&lt;/a&gt; there is far better than what I could summarize here.&lt;/p&gt;
+
+&lt;h3 id=&quot;-references&quot;&gt;📚 References&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://lwn.net/Kernel/LDD3/&quot;&gt;Linux Device Drivers, Third Edition&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.kernel.org/doc/html/latest/core-api/kobject.html&quot;&gt;Everything you never wanted to know about kobjects, ksets, and ktypes&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://lwn.net/Articles/645810/&quot;&gt;A fresh look at the kernel’s device model&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><author><name>Klemen Košir</name></author><summary type="html">As part of The Eudyptula Challenge, Little tasked me to read Chapter 14 of Linux Device Drivers, titled The Linux Device Model. Since the introduced topics are pretty advanced, I took some notes along the way. These skip many details, so if you find the topic interesting, please go read the whole chapter. Note that this book is a bit out of date since it was written for kernel version 2.6.10.</summary></entry><entry><title type="html">Publishing a Gradle project to Maven Central</title><link href="https://thoughts.kream.io/2020/07/26/maven-central.html" rel="alternate" type="text/html" title="Publishing a Gradle project to Maven Central" /><published>2020-07-26T10:00:00+00:00</published><updated>2020-07-26T10:00:00+00:00</updated><id>https://thoughts.kream.io/2020/07/26/maven-central</id><content type="html" xml:base="https://thoughts.kream.io/2020/07/26/maven-central.html">&lt;p&gt;I had some free time over the last few days to work on a small Java project, which I ultimately
+decided to publish on Maven Central. Due to being unable to find up-to-date samples for Gradle
+projects, I decided to collect my findings as a blog post.&lt;/p&gt;
+
+&lt;p&gt;While publishing projects to something like &lt;em&gt;npm&lt;/em&gt; is fairly simple, uploading to Maven Central is a
+bit more involved, as they have much stricter requirements and validation.&lt;/p&gt;
+
+&lt;p&gt;This blog post will guide you step by step from a plain Gradle configuration to being able to
+publish JARs to Maven Central in no time.&lt;/p&gt;
+
+&lt;h3 id=&quot;-baby-steps&quot;&gt;👶 Baby steps&lt;/h3&gt;
+
+&lt;h4 id=&quot;create-a-sonatype-account&quot;&gt;Create a Sonatype account&lt;/h4&gt;
+&lt;p&gt;Before we start, you need to gain write access to the repositories. Visit &lt;a href=&quot;https://issues.sonatype.org&quot;&gt;Sonatype’s Jira&lt;/a&gt;,
+create an account, and &lt;a href=&quot;https://issues.sonatype.org/secure/CreateIssue.jspa?issuetype=21&amp;amp;pid=10134&quot;&gt;open a new ticket&lt;/a&gt; to claim your desired &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;groupId&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;If the group ID is an ordinary domain, you will need to prove ownership. In my case, to claim
+&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;io.kream&lt;/code&gt;, I had to add a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;TXT&lt;/code&gt; record referencing the ticket to my domain’s DNS configuration.
+For reference, &lt;a href=&quot;https://issues.sonatype.org/browse/OSSRH-59420&quot;&gt;here’s my ticket&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/new-ticket.png&quot; alt=&quot;Open a new ticket&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;As this is a manual process done by a Sonatype employee, the approval can take up to a few hours.
+Once the account is approved, you’ll be able to log in to the &lt;a href=&quot;https://oss.sonatype.org&quot;&gt;Nexus Repository Manager&lt;/a&gt;,
+along with the repository URLs you should use.&lt;/p&gt;
+
+&lt;p&gt;While we’re waiting, let’s configure the rest!&lt;/p&gt;
+
+&lt;h4 id=&quot;generate-a-gpg-key&quot;&gt;Generate a GPG key&lt;/h4&gt;
+&lt;p&gt;To be able to sign the published artifacts, you’ll need a GPG key. For step-by-step instructions,
+you can refer to &lt;a href=&quot;https://docs.github.com/en/github/authenticating-to-github/generating-a-new-gpg-key&quot;&gt;GitHub documentation&lt;/a&gt;, but the process is as follows:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span class=&quot;c&quot;&gt;# Make sure to generate a 4096-bit RSA key.&lt;/span&gt;
+gpg &lt;span class=&quot;nt&quot;&gt;--full-generate-key&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# The first line contains your key ID, right after &quot;sec rsa4096/&quot;.&lt;/span&gt;
+gpg &lt;span class=&quot;nt&quot;&gt;--list-secret-keys&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;--keyid-format&lt;/span&gt; LONG
+&lt;span class=&quot;c&quot;&gt;# Publish the key so other developers can verify your signature.&lt;/span&gt;
+gpg &lt;span class=&quot;nt&quot;&gt;--keyserver&lt;/span&gt; hkp://pgp.mit.edu &lt;span class=&quot;nt&quot;&gt;--send-keys&lt;/span&gt; &amp;lt;KEY_ID&amp;gt;
+&lt;span class=&quot;c&quot;&gt;# Export your secret key to a file.&lt;/span&gt;
+gpg &lt;span class=&quot;nt&quot;&gt;--export-secret-key&lt;/span&gt; &amp;lt;KEY_ID&amp;gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; secret.gpg&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Make sure to store the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;secret.gpg&lt;/code&gt; file in a secure place and save the key ID for later.&lt;/p&gt;
+
+&lt;h3 id=&quot;️-configuring-gradle&quot;&gt;⚙️ Configuring Gradle&lt;/h3&gt;
+&lt;p&gt;First things first, let’s add the &lt;a href=&quot;https://docs.gradle.org/current/userguide/publishing_maven.html&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;maven-publish&lt;/code&gt;&lt;/a&gt; and &lt;a href=&quot;https://docs.gradle.org/current/userguide/signing_plugin.html&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;signing&lt;/code&gt;&lt;/a&gt;
+plugins to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;build.gradle&lt;/code&gt;.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-gradle&quot; data-lang=&quot;gradle&quot;&gt;&lt;span class=&quot;n&quot;&gt;plugins&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;id&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'maven-publish'&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;id&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'signing'&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;As stated in the &lt;a href=&quot;https://central.sonatype.org/pages/requirements.html&quot;&gt;requirements&lt;/a&gt;, we need to include source and Javadoc JARs in the
+published package.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-gradle&quot; data-lang=&quot;gradle&quot;&gt;&lt;span class=&quot;n&quot;&gt;java&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;withJavadocJar&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;withSourcesJar&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Upon running &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gradle build&lt;/code&gt;, the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;build/libs&lt;/code&gt; directory should contain two additional JAR files,
+ending with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;-javadoc&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;-sources&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h4 id=&quot;metadata&quot;&gt;Metadata&lt;/h4&gt;
+&lt;p&gt;Since projects published to Maven Central require a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pom.xml&lt;/code&gt; file, we’ll have to generate one.
+For the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;maven-publish&lt;/code&gt; plugin to do its magic, we need to define a publication and the target
+repository:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-gradle&quot; data-lang=&quot;gradle&quot;&gt;&lt;span class=&quot;k&quot;&gt;publishing&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;publications&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;jar&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;MavenPublication&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;c1&quot;&gt;// Include JAR files.&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;components&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;java&lt;/span&gt;
+
+      &lt;span class=&quot;n&quot;&gt;pom&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'project'&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;description&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'The best project ever'&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'https://example.com/project'&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;licenses&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+          &lt;span class=&quot;n&quot;&gt;license&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'MIT License'&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'https://opensource.org/licenses/MIT'&lt;/span&gt;
+          &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;developers&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+          &lt;span class=&quot;n&quot;&gt;developer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'Me'&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;email&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'me@example.com'&lt;/span&gt;
+          &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;scm&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+          &lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'scm:git:git://github.com/me/project.git'&lt;/span&gt;
+          &lt;span class=&quot;n&quot;&gt;developerConnection&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'scm:git:ssh://github.com:me/project.git'&lt;/span&gt;
+          &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'https://github.com/me/project'&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+      &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;repositories&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;maven&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;version&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;endsWith&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'-SNAPSHOT'&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;o&quot;&gt;?&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'https://oss.sonatype.org/content/repositories/snapshots'&lt;/span&gt;
+            &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'https://oss.sonatype.org/service/local/staging/deploy/maven2'&lt;/span&gt;
+
+      &lt;span class=&quot;n&quot;&gt;credentials&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;username&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;project&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;findProperty&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'ossrh.username'&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;password&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;project&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;findProperty&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'ossrh.password'&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The entry names can be anything, but we’ve chosen &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;jar&lt;/code&gt; as the publication and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;maven&lt;/code&gt; as the
+repository. All available properties for the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pom&lt;/code&gt; section can be found &lt;a href=&quot;https://docs.gradle.org/current/dsl/org.gradle.api.publish.maven.MavenPom.html&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;You can inspect the generated &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pom.xml&lt;/code&gt; file by running &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gradle generatePomFileForJarPublication&lt;/code&gt;
+and opening &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;build/publications/jar/pom-default.xml&lt;/code&gt;. It will include the project information, all
+the specified properties, and the dependencies.&lt;/p&gt;
+
+&lt;p&gt;As for the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;repositories&lt;/code&gt; section, we’ve specified the snapshot and release URLs, as instructed in
+the Jira ticket. This way we can publish any number of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SNAPSHOT&lt;/code&gt; versions before making the final
+release.&lt;/p&gt;
+
+&lt;p&gt;You can specify your credentials in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$HOME/.gradle/gradle.properties&lt;/code&gt;:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-properties&quot; data-lang=&quot;properties&quot;&gt;&lt;span class=&quot;py&quot;&gt;ossrh.username&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;lt;USERNAME&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;ossrh.password&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;lt;PASSWORD&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;To avoid storing your password as plaintext, you can generate a user token from your profile page
+on &lt;a href=&quot;https://oss.sonatype.org&quot;&gt;Nexus Repository Manager&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h4 id=&quot;signing&quot;&gt;Signing&lt;/h4&gt;
+
+&lt;p&gt;Unlike &lt;em&gt;npm&lt;/em&gt;, all files published to Maven Central need to be signed with GPG. With the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;signing&lt;/code&gt;
+plugin, this is as simple as adding the following section to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;build.gradle&lt;/code&gt;:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-gradle&quot; data-lang=&quot;gradle&quot;&gt;&lt;span class=&quot;n&quot;&gt;signing&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;sign&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;publishing&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;publications&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;jar&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Again, let’s store the credentials in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gradle.properties&lt;/code&gt;:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-properties&quot; data-lang=&quot;properties&quot;&gt;&lt;span class=&quot;c&quot;&gt;# Last 8 symbols of the key.
+&lt;/span&gt;&lt;span class=&quot;py&quot;&gt;signing.keyId&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;lt;KEY_ID&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;signing.password&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;lt;PASSWORD&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;signing.secretKeyRingFile&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;/path/to/secret.gpg&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;There are other ways to retrieve this information from environment variables or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gpg-agent&lt;/code&gt;.
+For details, please refer to the &lt;a href=&quot;https://docs.gradle.org/current/userguide/signing_plugin.html&quot;&gt;plugin documentation&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;You can verify the configuration by running &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gradle signJarPublication&lt;/code&gt; or just &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gradle sign&lt;/code&gt;.
+If everything is in order, the command will complete successfully. Additionally, the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;build/libs&lt;/code&gt;
+directory will now contain &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.asc&lt;/code&gt; files for the individual artifacts.&lt;/p&gt;
+
+&lt;h3 id=&quot;-release&quot;&gt;⭐ Release!&lt;/h3&gt;
+&lt;p&gt;Now that everything is set up, you can run &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gradle publish&lt;/code&gt;, and in about 30 seconds, your project
+should be published to the Sonatype repository!&lt;/p&gt;
+
+&lt;p&gt;If you’re publishing a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SNAPSHOT&lt;/code&gt; version, you’re all done, but if you’re trying to publish a
+release version, we have to do some more manual work. Log in to &lt;a href=&quot;https://oss.sonatype.org&quot;&gt;Nexus Repository Manager&lt;/a&gt;
+and click on &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Staging Repositories&lt;/code&gt; on the left.&lt;/p&gt;
+
+&lt;p&gt;This page will list your recently published staging versions. The repository should be in &lt;em&gt;Open&lt;/em&gt;
+state, which means it’s waiting for your review. You can inspect the repository contents, and once
+you’re happy with it, click on the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Close&lt;/code&gt; button. This will close the repository and trigger the
+validation checks.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/close-repository.png&quot; alt=&quot;Close the repository&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;This process can take a few seconds, but hopefully, all checks pass. If everything is in order, you
+can click on the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Release&lt;/code&gt; button and the package will be copied from staging to the release
+repository.&lt;/p&gt;
+
+&lt;p&gt;Since this is your first time publishing to Maven Central, you must comment on your Jira ticket that
+you’ve promoted the release, so the Sonatype employee can enable syncing. Once enabled, your project
+should be available for download from Maven Central fairly soon, and on search engines in about two
+hours.&lt;/p&gt;
+
+&lt;p&gt;Enjoy working on your project! 🎉&lt;/p&gt;
+
+&lt;h3 id=&quot;-references&quot;&gt;📚 References&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://central.sonatype.org/pages/ossrh-guide.html&quot;&gt;OSSRH Guide&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://central.sonatype.org/pages/requirements.html&quot;&gt;Sonatype requirements&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://docs.gradle.org/current/userguide/publishing_maven.html&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;maven-publish&lt;/code&gt; plugin documentation&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://docs.gradle.org/current/userguide/signing_plugin.html&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;signing&lt;/code&gt; plugin documentation&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://medium.com/@nmauti/publishing-a-project-on-maven-central-8106393db2c3&quot;&gt;Reference blog post&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><author><name>Klemen Košir</name></author><summary type="html">I had some free time over the last few days to work on a small Java project, which I ultimately decided to publish on Maven Central. Due to being unable to find up-to-date samples for Gradle projects, I decided to collect my findings as a blog post.</summary></entry></feed>

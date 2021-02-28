@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.7.1 -->
+<title>Notes on “The Linux Device Model” | thoughts out loud</title>
+<meta name="generator" content="Jekyll v4.2.0" />
+<meta property="og:title" content="Notes on “The Linux Device Model”" />
+<meta name="author" content="Klemen Košir" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="As part of The Eudyptula Challenge, Little tasked me to read Chapter 14 of Linux Device Drivers, titled The Linux Device Model. Since the introduced topics are pretty advanced, I took some notes along the way. These skip many details, so if you find the topic interesting, please go read the whole chapter. Note that this book is a bit out of date since it was written for kernel version 2.6.10." />
+<meta property="og:description" content="As part of The Eudyptula Challenge, Little tasked me to read Chapter 14 of Linux Device Drivers, titled The Linux Device Model. Since the introduced topics are pretty advanced, I took some notes along the way. These skip many details, so if you find the topic interesting, please go read the whole chapter. Note that this book is a bit out of date since it was written for kernel version 2.6.10." />
+<link rel="canonical" href="https://thoughts.kream.io/2021/02/23/linux-device-model.html" />
+<meta property="og:url" content="https://thoughts.kream.io/2021/02/23/linux-device-model.html" />
+<meta property="og:site_name" content="thoughts out loud" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2021-02-23T10:00:00+00:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Notes on “The Linux Device Model”" />
+<script type="application/ld+json">
+{"description":"As part of The Eudyptula Challenge, Little tasked me to read Chapter 14 of Linux Device Drivers, titled The Linux Device Model. Since the introduced topics are pretty advanced, I took some notes along the way. These skip many details, so if you find the topic interesting, please go read the whole chapter. Note that this book is a bit out of date since it was written for kernel version 2.6.10.","url":"https://thoughts.kream.io/2021/02/23/linux-device-model.html","@type":"BlogPosting","datePublished":"2021-02-23T10:00:00+00:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://thoughts.kream.io/2021/02/23/linux-device-model.html"},"author":{"@type":"Person","name":"Klemen Košir"},"headline":"Notes on “The Linux Device Model”","dateModified":"2021-02-23T10:00:00+00:00","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="icon" href="/assets/favicon.ico">
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="stylesheet" href="/assets/custom.css"><link type="application/atom+xml" rel="alternate" href="https://thoughts.kream.io/feed.xml" title="thoughts out loud" /><script>
+if(!(window.doNotTrack === "1" || navigator.doNotTrack === "1" || navigator.doNotTrack === "yes" || navigator.msDoNotTrack === "1")) {
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-85731271-2', 'auto');
+  ga('send', 'pageview');
+}
+</script>
+  
+</head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">thoughts out loud</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Notes on &quot;The Linux Device Model&quot;</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2021-02-23T10:00:00+00:00" itemprop="datePublished">Feb 23, 2021
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>As part of <a href="http://eudyptula-challenge.org">The Eudyptula Challenge</a>, Little tasked me to read Chapter 14 of
+<a href="https://lwn.net/Kernel/LDD3/">Linux Device Drivers</a>, titled <em>The Linux Device Model</em>. Since the introduced topics are
+pretty advanced, I took some notes along the way. These skip many details, so if you find the topic
+interesting, please go read the whole chapter. Note that this book is a bit out of date since it
+was written for kernel version <code class="language-plaintext highlighter-rouge">2.6.10</code>.</p>
+
+<p>The Linux device model can be roughly described as a data structure used to represent the hierarchy
+and relationships between buses, drivers, and devices in a Linux system. This model is exposed and
+can be interacted with, using the <em>sysfs</em> pseudo filesystem, which is usually mounted at <code class="language-plaintext highlighter-rouge">/sys</code>.</p>
+
+<h3 id="-kobjects">🧱 Kobjects</h3>
+<p>Kobjects are the basic building blocks of the Linux device model. They can be used for:</p>
+<ul>
+  <li>reference counting (embedded inside other data structures)</li>
+  <li><em>sysfs</em> representation</li>
+  <li>device model representation</li>
+  <li>hotplug event handing</li>
+</ul>
+
+<p>We won’t go into detail about reference counting, but kobject’s reference counter can be modified
+using the <code class="language-plaintext highlighter-rouge">kobject_get()</code> and <code class="language-plaintext highlighter-rouge">kobject_put()</code> functions. Once the counter reaches <code class="language-plaintext highlighter-rouge">0</code>, the kobject
+is freed.</p>
+
+<p>All kobjects, if exposed, show up in <code class="language-plaintext highlighter-rouge">/sys</code> as directories. Inside these directories reside the
+kobject’s attributes as files. Each kobject is assigned a <em>ktype</em>, which defines its default
+attributes, along with <code class="language-plaintext highlighter-rouge">show()</code> and <code class="language-plaintext highlighter-rouge">store()</code> functions (through <code class="language-plaintext highlighter-rouge">sysfs_ops</code>). These verify and
+implement the read/write operations on the attributes (files). If you wish to modify non-default
+attributes to a kobject, you can use the <code class="language-plaintext highlighter-rouge">sysfs_{create,remove}_file()</code> functions.</p>
+
+<h4 id="ksets">Ksets</h4>
+<p>While relationships between kobjects can be defined using the <code class="language-plaintext highlighter-rouge">parent</code> field, they are usually
+grouped into <em>ksets</em> (using a linked list). These act as a container for other kobjects and ksets,
+and always appear under <code class="language-plaintext highlighter-rouge">/sys</code>, through an embedded kobject. If a kobject is part of a kset, it uses
+the parent kset’s ktype. Kset membership can be modified using the <code class="language-plaintext highlighter-rouge">kobject_{add,del}()</code> functions.</p>
+
+<p>Kobjects without a parent will appear in the <em>sysfs</em> root, but this is rarely desired. On the
+other hand, ksets must belong to a <em>subsystem</em>. A subsystem is a representation of a part of the
+device model (for example the device subsystem under <code class="language-plaintext highlighter-rouge">/sys/devices</code> or the PCI subsystem under
+<code class="language-plaintext highlighter-rouge">/sys/bus/pci</code>). The <code class="language-plaintext highlighter-rouge">subsystem</code> data structure contains a single kset and a semaphore to control
+concurrent access during kset traversal.</p>
+
+<p>While the <em>sysfs</em> filesystem has a tree structure, additional relationships between kobjects are
+represented using symbolic links. For example, the device a driver is attached to is simply a
+symbolic link to <code class="language-plaintext highlighter-rouge">/sys/devices/&lt;device&gt;</code>.</p>
+
+<p>Each time a kobject is created or removed, a hotplug event is triggered, which allows the userspace
+to react appropriately and load the necessary drivers. This used to be handled by the
+<code class="language-plaintext highlighter-rouge">/sbin/hotplug</code> script. The events bubble up the device model, and each layer can add the
+corresponding environment variables or suppress the event if necessary.</p>
+
+<p>Here’s an example of a simple <em>sysfs</em> hierarchy:</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>tree /sys
+/sys
+├── kobject
+├── kset
+│   ├── kobject1
+│   │   ├── attribute1
+│   │   └── attribute2
+│   ├── kobject2 -&gt; ../subsystem/kobject
+│   └── kobject3
+└── subsystem
+    └── kobject
+</code></pre></div></div>
+
+<h3 id="-devices-and-drivers">🏠 Devices and drivers</h3>
+<p>Using kobjects as a base, higher-level data structures are fairly similar. They each use an embedded
+kobject and represent a small part of the Linux device model. Whenever your functions are passed a
+lower-level object, which is embedded in a custom data structure, you can use the <code class="language-plaintext highlighter-rouge">container_of()</code>
+macro to get the containing data structure defined in your kernel module.</p>
+
+<p>Similar to kobjects, these data structures all have their own functions for initialization and
+attribute handling. For ease of development, convenience macros like <code class="language-plaintext highlighter-rouge">DEVICE_ATTR()</code> are defined.</p>
+
+<h4 id="buses">Buses</h4>
+<p>Buses are used as a channel between the CPU and multiple devices. While not necessarily representing
+a physical bus, all devices must be connected via a bus. Virtual buses are called “platform” buses.
+Note that each bus is its own subsystem and is located under <code class="language-plaintext highlighter-rouge">/sys/bus</code>. Each bus contains a
+<code class="language-plaintext highlighter-rouge">devices</code> and a <code class="language-plaintext highlighter-rouge">drivers</code> kset. As mentioned before, devices are symbolic links to <code class="language-plaintext highlighter-rouge">/sys/devices</code>.</p>
+
+<p>Whenever a new device or a driver for a specific bus is added, the <code class="language-plaintext highlighter-rouge">match()</code> function is called,
+which tries to assign the device with a driver. After the function finds a driver, the kernel calls
+its <code class="language-plaintext highlighter-rouge">probe()</code> method, which performs additional checks and initialized the device. If <code class="language-plaintext highlighter-rouge">probe()</code>
+returns an error, <code class="language-plaintext highlighter-rouge">match()</code> continues with other drivers.</p>
+
+<h4 id="devices">Devices</h4>
+<p>Every device in a Linux system is represented by a <code class="language-plaintext highlighter-rouge">device</code> structure. It contains all the fields
+needed to identify a device and its location within the device tree, while most other fields are
+initialized by the specified subsystem, which assigns the bus and a driver. These subsystems
+usually wrap the <code class="language-plaintext highlighter-rouge">device</code> structure to track additional information. As mentioned, all devices are
+located in <code class="language-plaintext highlighter-rouge">/sys/devices</code>.</p>
+
+<p>Classes are an even higher-level abstraction over devices, based on what a device does (for example
+storage or input devices). They have pretty a complex interface, so we won’t go into detail.
+Classes are usually located in <code class="language-plaintext highlighter-rouge">/sys/class</code>, which mostly contain symbolic links to devices. Class
+membership is handled by higher-level subsystem code.</p>
+
+<h4 id="drivers">Drivers</h4>
+<p>Drivers, usually located under <code class="language-plaintext highlighter-rouge">/sys/bus/&lt;name&gt;/drivers</code>, implement the logic to interact with a
+device. Once it’s registered with a subsystem, it can be matched with devices connected to a system.
+The structure of a <code class="language-plaintext highlighter-rouge">driver</code> object is similar to <code class="language-plaintext highlighter-rouge">device</code>, but it also contains various methods to
+initialize and shutdown devices. One of these methods is <code class="language-plaintext highlighter-rouge">probe()</code>, mentioned above.</p>
+
+<p>This concludes my notes about the various data structures in the Linux device model. For an example
+of how this all works in practice in the PCI subsystem, please check the <em>Putting It All Together</em>
+section in the book. The <a href="https://static.lwn.net/images/pdf/LDD3/ch14.pdf">explanation</a> there is far better than what I could summarize here.</p>
+
+<h3 id="-references">📚 References</h3>
+<ul>
+  <li><a href="https://lwn.net/Kernel/LDD3/">Linux Device Drivers, Third Edition</a></li>
+  <li><a href="https://www.kernel.org/doc/html/latest/core-api/kobject.html">Everything you never wanted to know about kobjects, ksets, and ktypes</a></li>
+  <li><a href="https://lwn.net/Articles/645810/">A fresh look at the kernel’s device model</a></li>
+</ul>
+
+
+  </div><a class="u-url" href="/2021/02/23/linux-device-model.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">thoughts out loud</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Klemen Košir</li><li><a class="u-email" href="mailto:klemen.kosir@kream.io">klemen.kosir@kream.io</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/KarboniteKream"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">KarboniteKream</span></a></li><li><a href="https://www.twitter.com/KarboniteKream"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">KarboniteKream</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>I have thoughts, sometimes.</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
