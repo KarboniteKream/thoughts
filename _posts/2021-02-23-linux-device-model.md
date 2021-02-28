@@ -111,9 +111,11 @@ section in the book. The [explanation][chapter14] there is far better than what 
 
 ### 📚 References
 - [Linux Device Drivers, Third Edition][ldd3]
+- [Everything you never wanted to know about kobjects, ksets, and ktypes][kobject-docs]
 - [A fresh look at the kernel's device model][fresh-look]
 
 [eudyptula]: http://eudyptula-challenge.org
 [ldd3]: https://lwn.net/Kernel/LDD3/
 [chapter14]: https://static.lwn.net/images/pdf/LDD3/ch14.pdf
+[kobject-docs]: https://www.kernel.org/doc/html/latest/core-api/kobject.html
 [fresh-look]: https://lwn.net/Articles/645810/
