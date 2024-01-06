@@ -2,7 +2,6 @@
   <data class="u-url" href="{{ "/" | relative_url }}"></data>
 
   <div class="wrapper">
-
     <h2 class="footer-heading">{{ site.title | escape }}</h2>
 
     <div class="footer-col-wrapper">
@@ -14,10 +13,10 @@
             {%- else -%}
               {{ site.title | escape }}
             {%- endif -%}
-            </li>
-            {%- if site.email -%}
+          </li>
+          {%- if site.email -%}
             <li><a class="u-email" href="mailto:{{ site.email }}">{{ site.email }}</a></li>
-            {%- endif -%}
+          {%- endif -%}
         </ul>
       </div>
 
@@ -29,7 +28,5 @@
         <p>{{- site.description | escape -}}</p>
       </div>
     </div>
-
   </div>
-
 </footer>
