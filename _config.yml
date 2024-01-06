@@ -1,16 +1,12 @@
 title: thoughts out loud
 description: I have thoughts, sometimes.
-show_excerpts: true
+date_format: "%B %-d, %Y"
 url: "https://thoughts.kream.io"
+
 author: Klemen Košir
 email: klemen.kosir@kream.io
 github_username: KarboniteKream
 twitter_username: KarboniteKream
-
-theme: minima
-
-plugins:
-  - jekyll-feed
 
 include:
   - _pages
