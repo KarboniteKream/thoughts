@@ -7,11 +7,6 @@ email: klemen.kosir@kream.io
 github_username: KarboniteKream
 twitter_username: KarboniteKream
 
-theme: minima
-
-plugins:
-  - jekyll-feed
-
 include:
   - _pages
 
