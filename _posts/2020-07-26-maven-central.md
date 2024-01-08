@@ -24,6 +24,7 @@ If the group ID is an ordinary domain, you will need to prove ownership. In my c
 `io.kream`, I had to add a `TXT` record referencing the ticket to my domain's DNS configuration.
 For reference, [here's my ticket][sample-ticket].
 
+{:.center}
 ![Open a new ticket](/assets/images/new-ticket.png)
 
 As this is a manual process done by a Sonatype employee, the approval can take up to a few hours.
@@ -36,7 +37,7 @@ While we're waiting, let's configure the rest!
 To be able to sign the published artifacts, you'll need a GPG key. For step-by-step instructions,
 you can refer to [GitHub documentation][gpg], but the process is as follows:
 
-{% highlight bash %}
+```shell
 # Make sure to generate a 4096-bit RSA key.
 gpg --full-generate-key
 # The first line contains your key ID, right after "sec rsa4096/".
@@ -45,7 +46,7 @@ gpg --list-secret-keys --keyid-format LONG
 gpg --keyserver hkp://pgp.mit.edu --send-keys <KEY_ID>
 # Export your secret key to a file.
 gpg --export-secret-key <KEY_ID> > secret.gpg
-{% endhighlight %}
+```
 
 Make sure to store the `secret.gpg` file in a secure place and save the key ID for later.
 
@@ -53,22 +54,22 @@ Make sure to store the `secret.gpg` file in a secure place and save the key ID f
 First things first, let's add the [`maven-publish`][maven-publish] and [`signing`][signing]
 plugins to `build.gradle`.
 
-{% highlight gradle %}
+```groovy
 plugins {
   id 'maven-publish'
   id 'signing'
 }
-{% endhighlight %}
+```
 
 As stated in the [requirements][requirements], we need to include source and Javadoc JARs in the
 published package.
 
-{% highlight gradle %}
+```groovy
 java {
   withJavadocJar()
   withSourcesJar()
 }
-{% endhighlight %}
+```
 
 Upon running `gradle build`, the `build/libs` directory should contain two additional JAR files,
 ending with `-javadoc` and `-sources`.
@@ -78,7 +79,7 @@ Since projects published to Maven Central require a `pom.xml` file, we'll have t
 For the `maven-publish` plugin to do its magic, we need to define a publication and the target
 repository:
 
-{% highlight gradle %}
+```groovy
 publishing {
   publications {
     jar(MavenPublication) {
@@ -123,7 +124,7 @@ publishing {
     }
   }
 }
-{% endhighlight %}
+```
 
 The entry names can be anything, but we've chosen `jar` as the publication and `maven` as the
 repository. All available properties for the `pom` section can be found [here][maven-pom].
@@ -138,10 +139,10 @@ release.
 
 You can specify your credentials in `$HOME/.gradle/gradle.properties`:
 
-{% highlight properties %}
+```properties
 ossrh.username=<USERNAME>
 ossrh.password=<PASSWORD>
-{% endhighlight %}
+```
 
 To avoid storing your password as plaintext, you can generate a user token from your profile page
 on [Nexus Repository Manager][nexus].
@@ -151,20 +152,20 @@ on [Nexus Repository Manager][nexus].
 Unlike *npm*, all files published to Maven Central need to be signed with GPG. With the `signing`
 plugin, this is as simple as adding the following section to `build.gradle`:
 
-{% highlight gradle %}
+```groovy
 signing {
   sign publishing.publications.jar
 }
-{% endhighlight %}
+```
 
 Again, let's store the credentials in `gradle.properties`:
 
-{% highlight properties %}
+```properties
 # Last 8 symbols of the key.
 signing.keyId=<KEY_ID>
 signing.password=<PASSWORD>
 signing.secretKeyRingFile=/path/to/secret.gpg
-{% endhighlight %}
+```
 
 There are other ways to retrieve this information from environment variables or `gpg-agent`.
 For details, please refer to the [plugin documentation][signing].
@@ -186,6 +187,7 @@ state, which means it's waiting for your review. You can inspect the repository 
 you're happy with it, click on the `Close` button. This will close the repository and trigger the
 validation checks.
 
+{:.center}
 ![Close the repository](/assets/images/close-repository.png)
 
 This process can take a few seconds, but hopefully, all checks pass. If everything is in order, you

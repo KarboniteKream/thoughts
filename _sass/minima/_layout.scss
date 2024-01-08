@@ -240,4 +240,8 @@
       @include relative-font-size(1.125);
     }
   }
+
+  p.center {
+    text-align: center;
+  }
 }
