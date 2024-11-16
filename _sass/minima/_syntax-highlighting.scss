@@ -1,5 +1,7 @@
 // Syntax highlighting with Rouge.
 
+@use "placeholders";
+
 .highlight {
   background: #fff;
   @extend %vertical-rhythm;
