@@ -1,3 +1,10 @@
+@use "sass:color";
+@use "sass:list";
+
+@use "mixins";
+@use "placeholders";
+@use "vars";
+
 // Reset some basic elements.
 body, h1, h2, h3, h4, h5, h6,
 p, blockquote, pre, hr,
@@ -7,9 +14,9 @@ dl, dd, ol, ul, figure {
 }
 
 body {
-  font: $base-font-weight #{$base-font-size}/#{$base-line-height} $base-font-family;
-  color: $text-color;
-  background-color: $background-color;
+  font: vars.$base-font-weight list.slash(vars.$base-font-size, vars.$base-line-height) vars.$base-font-family;
+  color: vars.$text-color;
+  background-color: vars.$background-color;
   -webkit-text-size-adjust: 100%;
   font-feature-settings: "kern" 1;
   font-kerning: normal;
@@ -20,9 +27,8 @@ body {
 
 h1, h2, h3, h4, h5, h6,
 p, blockquote, pre,
-ul, ol, dl, figure,
-%vertical-rhythm {
-  margin-bottom: calc($spacing-unit / 2);
+ul, ol, dl, figure {
+  margin-bottom: calc(vars.$spacing-unit / 2);
 }
 
 main {
@@ -40,11 +46,11 @@ figure > img {
 }
 
 figcaption {
-  font-size: $small-font-size;
+  font-size: vars.$small-font-size;
 }
 
 ul, ol {
-  margin-left: $spacing-unit;
+  margin-left: vars.$spacing-unit;
 }
 
 li {
@@ -55,19 +61,19 @@ li {
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-weight: $base-font-weight;
+  font-weight: vars.$base-font-weight;
 }
 
 a {
-  color: $brand-color;
+  color: vars.$brand-color;
   text-decoration: none;
 
   &:visited {
-    color: darken($brand-color, 15%);
+    color: color.adjust(vars.$brand-color, $lightness: -15%);
   }
 
   &:hover {
-    color: $text-color;
+    color: vars.$text-color;
     text-decoration: underline;
   }
 
@@ -81,10 +87,10 @@ a {
 }
 
 blockquote {
-  color: $grey-color;
-  border-left: 4px solid $grey-color-light;
-  padding-left: calc($spacing-unit / 2);
-  @include relative-font-size(1.125);
+  color: vars.$grey-color;
+  border-left: 4px solid vars.$grey-color-light;
+  padding-left: calc(vars.$spacing-unit / 2);
+  @include mixins.relative-font-size(1.125);
   letter-spacing: -1px;
   font-style: italic;
 
@@ -95,8 +101,8 @@ blockquote {
 
 pre,
 code {
-  @include relative-font-size(0.9375);
-  border: 1px solid $grey-color-light;
+  @include mixins.relative-font-size(0.9375);
+  border: 1px solid vars.$grey-color-light;
   border-radius: 3px;
   background-color: #eef;
 }
@@ -117,31 +123,25 @@ pre {
 }
 
 .wrapper {
-  max-width: calc(#{$content-width} - (#{$spacing-unit} * 2));
+  max-width: calc(vars.$content-width - (#{vars.$spacing-unit} * 2));
   margin-right: auto;
   margin-left: auto;
-  padding-right: $spacing-unit;
-  padding-left: $spacing-unit;
+  padding-right: vars.$spacing-unit;
+  padding-left: vars.$spacing-unit;
   @extend %clearfix;
 
-  @include media-query($on-laptop) {
-    max-width: calc(#{$content-width} - (#{$spacing-unit}));
-    padding-right: calc($spacing-unit / 2);
-    padding-left: calc($spacing-unit / 2);
+  @include mixins.media-query(vars.$on-laptop) {
+    max-width: calc(vars.$content-width - (#{vars.$spacing-unit}));
+    padding-right: calc(vars.$spacing-unit / 2);
+    padding-left: calc(vars.$spacing-unit / 2);
   }
-}
-
-%clearfix:after {
-  content: "";
-  display: table;
-  clear: both;
 }
 
 .svg-icon {
     width: 16px;
     height: 16px;
     display: inline-block;
-    fill: #{$grey-color};
+    fill: vars.$grey-color;
     padding-right: 5px;
     vertical-align: text-top;
 }
@@ -153,30 +153,30 @@ pre {
 }
 
 table {
-  margin-bottom: $spacing-unit;
+  margin-bottom: vars.$spacing-unit;
   width: 100%;
-  text-align: $table-text-align;
-  color: lighten($text-color, 18%);
+  text-align: vars.$table-text-align;
+  color: color.adjust(vars.$text-color, $lightness: 18%);
   border-collapse: collapse;
-  border: 1px solid $grey-color-light;
+  border: 1px solid vars.$grey-color-light;
 
   tr {
     &:nth-child(even) {
-      background-color: lighten($grey-color-light, 6%);
+      background-color: color.adjust(vars.$grey-color-light, $lightness: 6%);
     }
   }
 
   th, td {
-    padding: calc($spacing-unit / 3) calc($spacing-unit / 2);
+    padding: calc(vars.$spacing-unit / 3) calc(vars.$spacing-unit / 2);
   }
 
   th {
-    background-color: lighten($grey-color-light, 3%);
-    border: 1px solid darken($grey-color-light, 4%);
-    border-bottom-color: darken($grey-color-light, 12%);
+    background-color: color.adjust(vars.$grey-color-light, $lightness: 3%);
+    border: 1px solid color.adjust(vars.$grey-color-light, $lightness: -4%);
+    border-bottom-color: color.adjust(vars.$grey-color-light, $lightness: -12%);
   }
 
   td {
-    border: 1px solid $grey-color-light;
+    border: 1px solid vars.$grey-color-light;
   }
 }

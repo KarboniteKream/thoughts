@@ -1,0 +1,11 @@
+@use "vars";
+
+%clearfix:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+%vertical-rhythm {
+  margin-bottom: calc(vars.$spacing-unit / 2);
+}
