@@ -1,3 +1,4 @@
+---
 name: GitHub Pages
 
 on:
@@ -20,6 +21,7 @@ concurrency:
 
 jobs:
   build:
+    name: "Build"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,12 +29,12 @@ jobs:
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.2"
+          ruby-version: "3.3"
           bundler-cache: true
-          cache-version: 1
+          cache-version: 2
       - name: Setup Pages
         id: pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v5
       - name: Build
         run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
         env:
@@ -41,6 +43,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
 
   deploy:
+    name: "Deploy"
     if: ${{ github.event_name != 'pull_request' }}
     needs: build
     runs-on: ubuntu-latest
