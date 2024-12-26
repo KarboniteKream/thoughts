@@ -1,3 +1,4 @@
+---
 title: thoughts out loud
 description: I have thoughts, sometimes.
 date_format: "%B %-d, %Y"
@@ -6,7 +7,7 @@ url: "https://thoughts.kream.io"
 author: Klemen Košir
 email: klemen.kosir@kream.io
 github_username: KarboniteKream
-twitter_username: KarboniteKream
+bluesky_username: karbonite.kream.io
 
 include:
   - _pages
