@@ -65,11 +65,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 a {
-  color: vars.$brand-color;
+  color: vars.$link-color;
   text-decoration: none;
 
   &:visited {
-    color: color.adjust(vars.$brand-color, $lightness: -15%);
+    color: color.adjust(vars.$link-color, $lightness: -15%);
   }
 
   &:hover {
